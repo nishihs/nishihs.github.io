@@ -26,7 +26,8 @@ before_install:
 install:
   - travis_retry cabal update
   - cabal sandbox init
-  - cabal install --only-dependencies --disable-documentation
+#  - cabal install --only-dependencies --disable-documentation
+  - cabal install --only-dependencies
   - cabal configure --disable-library-profiling --disable-tests --disable-library-coverage --disable-benchmarks --disable-split-objs
 
 before_script:
