@@ -1,0 +1,50 @@
+ NB: don't set `language: haskell` here
+
+# See also https://github.com/hvr/multi-ghc-travis for more information
+
+branches:
+  only:
+    - source
+
+env:
+  global:
+    - GH_NAME="Travis on behalf of nishihs"
+    - secure: "hdH/qnDl6fIg0pcucD2G4IJWWJFz5Fxh67wqQvDGw+VH8LYE+it4Jxcn3UrlpjS0FrHv5dERsFr3X3eUQsuQZpUInoW3X29nnAJA0L1lu1cKDPrukEbG0Lrz5fwm8cFJFVh+im/Qyb4XMWQx/b5GEKiU5qAz2Y8XewmQesVHuZrH2VM3pV634EYA/tDpsriz1q5RE+jUuNG9JqDMUXh5j3BpX5kPPs7ySClaJXvx6mn/pGT3BVrFcTO3MnSAtmbXpkdQ97rLhCcsXtnUSmYTTzTfV7qZc78YYTlaEBHZYKRS9p2W5LrxP0VALbEnJEcDHpLOl7oUtpLu1aI9QDvFHtGtlFkeJXwyEzG2n+vvxB6Iemds+bShJ3OIq5EV6UZt/DJVH3dKOEVVq418RMXZvyZrC/1/6AffgusTOKJtt5FTOI5yTnT8zoe+APH41iL7w4yr0Qrc9uL4CjhpHzOf3uFa5rbyC5lL1sYPQ5hKxATjm4dam0noXA6NwqLufpAMO/CS3YHDyRwLFOSRit7KWmevE+uydDjFH4ssSWvFBYIQBdlW+Xqk3zL2JGurpACiR3uasO2x4ssRqz+z4dxrMCh+PRrS/ocLrz5KqZDNNP6C3BTuK0OjWe/b3N3WOH99qUBIn0KoF60mPwHgBmQn8Wvt+JOB+T3ouSA+D06I0Og="
+    - secure: "HU/VIdUJbJ/pWcMON0h4OtkOwJN6sewUBuh8sUXezH5Ta3cwBUYeOR4O6V09dOKxIKO+yYGzIXVO16iGMeFTIMOYWdAsHBq1hFmm+SMM3bSrv+qcs0JJ81zrCqxmK2U8Fmwd5YG5HWnkoOHmtmyptDO831B4HL6V0daYOJy1aTuUKsSRq0eQJRm0lYIHrgS46CXsFsQQypkR1gj76x3W7ihSnzvt5K8tlcIp9M/9mBCBtnTcZAHNdXEsGIU0N/0yLn8dSD0ogtWaMVeN4RrTO7IjQij6uKE7/rn517wN+Vy9lgNT/GIgWRjrMMXnIRX8iHWpIfmO3YYGTcB5W+cwvklVmsXAA9cyswOrGu/bhojcJeVNNS54QzwoA3NmJzKcdP+vhdZdwEtY/PpfoQqGjC2dpHoRxelmAAxz4cQ4ocZFiQHtseZ9W5xkZZwYuAx5qrzxEjJ9Sd+55CK4c9B9A3t/EQ7Z+ueKXGLJ2ctJc2HdIFggEdynKM+7nEySFQZ9GRMV1Yh4CsVcddnwrRkNboSlylVLPByifFqgZRzr1zjwPUGPsxRZWSylSP54CcaIOqvN+DIFO79B4F4lwE+Zw/VDVIMLBxpykMv7uhS0vNfO0NvW31tlJGfdUBK+eQis3Hq6AYZYfAILvVfGYTjnwUfaBN43pi+sFiySo3bCmbs="
+
+  matrix:
+    - CABALVER=1.20 GHCVER=7.8.3
+#    - CABALVER=1.22 GHCVER=7.10.1
+#    - CABALVER=head GHCVER=head
+
+before_install:
+  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
+  - travis_retry sudo apt-get update
+  - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
+  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+
+  - git submodule foreach --recursive 'git checkout master; git ls-files | grep -v README | grep -v CNAME | xargs -r git rm'
+
+install:
+  - travis_retry cabal update
+  - cabal sandbox init
+  - cabal install --only-dependencies --disable-documentation
+  - cabal configure --disable-library-profiling --disable-tests --disable-library-coverage --disable-benchmarks --disable-split-objs
+
+before_script:
+  - git config --global user.name "$GH_NAME"
+  - git config --global user.email "$GH_EMAIL"
+
+script:
+  - cabal run -j build
+
+after_success:
+  - if [[ "$TRAVIS_BRANCH" == "source" ]]; then
+    cd _site;
+    export REMOTE=$(git config remote.origin.url | sed 's/.*:\/\///');
+    git remote add github https://${GH_TOKEN}@${REMOTE};
+    git add --all;
+    git status;
+    git commit -m "Built by Travis ( build $TRAVIS_BUILD_NUMBER )";
+    git push github master:master | grep -v http;
+    fi
